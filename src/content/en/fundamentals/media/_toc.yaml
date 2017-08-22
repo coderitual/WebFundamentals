@@ -13,11 +13,15 @@ toc:
         path: /web/fundamentals/media/mse/basics
       - title: Seamless Playback
         path: /web/fundamentals/media/mse/seamless-playback
+    - title: Fast Playback with Video Preload
+      path: /web/fundamentals/media/fast-playback-with-video-preload
     - title: Manipulating Files
       section:
       - title: Application Primers
         path: /web/fundamentals/media/manipulating/applications
       - title: From Raw Video to Web Ready
         path: /web/fundamentals/media/manipulating/files
+      - title: Real Time Effects For Images and Video
+        path: /web/fundamentals/media/manipulating/live-effects
       - title: Cheat Sheet
         path: /web/fundamentals/media/manipulating/cheatsheet

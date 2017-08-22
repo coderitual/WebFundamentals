@@ -2,7 +2,7 @@ project_path: /web/_project.yaml
 book_path: /web/fundamentals/_book.yaml
 description: Let's take a raw video file off a camera and transform it into an encrypted resource that you can play back using a video library such as Google's Shaka Player on a mobile device.
 
-{# wf_updated_on: 2017-06-30 #}
+{# wf_updated_on: 2017-07-25 #}
 {# wf_published_on: 2017-06-30 #}
 
 # From Raw Video to Web Ready {: .page-title }
@@ -27,7 +27,7 @@ will be media resources with the following characteristics:
 +  Versions of the video file are in mp4 and webm format
 +  Versions of the audio file are in m4a and webm format
 +  A bitrate of 0.35 Megabits per second (Mbs)
-+  Resolution of 1920 by 1080
++  Resolution of 640 by 360
 +  Encrypted
 +  Viewable on all major browsers using appropriate technologies
 
@@ -188,9 +188,9 @@ encoded with the aac codec.
     ffmpeg -i glocken.webm -vn -c:a vorbis glocken.m4a
 
 The [cheat sheet](/web/fundamentals/media/manipulating/cheatsheet#codec) lists
-commands needed to convert codecs. The tables sumarize the libraries used in
+commands needed to convert codecs. The tables summarize the libraries used in
 ffmpeg to perform the codec conversions for webm and mp4 files. These are the
-formats used for DASH and HLS respectively.
+formats recommended for DASH and HLS respectively.
 
 ***Video***
 
@@ -216,9 +216,9 @@ file. It probably goes without saying, but I'm going to say it anyway, that you
 can always lower bitrate and resolution, but increasing them is a problem.
 Without special software and algorithms, quality is going to take a hit.
 
-The first step in changing bitrate and resultion is to [display the file
+The first step in changing bitrate and resolution is to [display the file
 characteristics](/web/fundamentals/media/manipulating/cheatsheet#display_characteristics)
-and verify that your source file has a higher bitrate or resultion than your
+and verify that your source file has a higher bitrate or resolution than your
 desired result.
 
 ### Bitrate
@@ -249,7 +249,7 @@ as well. For demonstration purposes, I'm going to target 3G.
 
 In ffmpeg you set the bitrate with the (surprise!) bitrate (`-b`) flag.
 
-    ffmpeg -i glocken.mov -b:v 350K -b:a 350K glocken.mp4
+    ffmpeg -i glocken.mov -b:v 350K -b:a 64K glocken.mp4
 
 Notice that there are two bitrate flags, `-b:a` and `-b:v`. One is for audio and the
 other is for video.
@@ -278,7 +278,7 @@ may chose a single resolution. If you're preparing files for DASH or HLS, you
 may chose one, several, or all. Fortunately, this is one of the simplest
 transformations you'll make with ffmpeg.
 
-    ffmpeg -i glocken.webm -s 1920x1080 glocken_1920x1080.webm
+    ffmpeg -i glocken.webm -s 640x360 glocken_640x360.webm
 
 It's worth reiterating that you should start from the highest resolution and
 bitrate file you have available. If you're one of the many who are now
@@ -357,4 +357,4 @@ Widevine works.)
 This does not cover everything you could do to a media file before posting it to
 the web, not by a longshot. To be fair, this subject is one deserving of its own
 website. I'm hoping this introduction will give you enough to help you find your
-own aswers to questions.
+own answers to questions.

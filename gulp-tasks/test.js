@@ -38,7 +38,7 @@ const MEDIA_FILES = [
 ];
 const VALID_DATE_FORMATS = [
   'YYYY-MM-DD',
-  'YYYY-YY-YYTHH:mm:ssZ',
+  'YYYY-MM-DDTHH:mm:ssZ',
   'YYYY-MM-DDTHH:mm:ss.sssZ'
 ];
 const REMARK_WARNING_ONLY = [
@@ -50,6 +50,7 @@ const RE_SRC_BASE = /src\/content\//;
 const RE_DATA_BASE = /src\/data\//;
 const COMMON_TAGS_FILE = 'src/data/commonTags.json';
 const CONTRIBUTORS_FILE = 'src/data/_contributors.yaml';
+const BLINK_COMPONENTS_FILE = 'src/data/blinkComponents.json';
 const VALID_REGIONS = [
   'africa', 'asia', 'europe', 'middle-east', 'north-america', 'south-america'
 ];
@@ -124,8 +125,8 @@ let filesWithIssues = {};
  * Logs a message to the console
  *
  * @param {string} level ERROR or WARNING, the level of the error
- * @param {string} filename The file the issue occured in
- * @param {Object} position The line/column the error occured on
+ * @param {string} filename The file the issue occurred in
+ * @param {Object} position The line/column the error occurred on
  * @param {string} message The message to be displayed
  * @param {Object} extra Any extra information to show
  */
@@ -157,8 +158,8 @@ function logMessage(level, filename, position, message, extra) {
 /**
  * Logs an ERROR message to the console
  *
- * @param {string} filename The file the issue occured in
- * @param {Object} position The line/column the error occured on
+ * @param {string} filename The file the issue occurred in
+ * @param {Object} position The line/column the error occurred on
  * @param {string} message The message to be displayed
  * @param {Object} extra Any extra information to show
  */
@@ -173,8 +174,8 @@ function logError(filename, position, message, extra) {
 /**
  * Logs a WARNING message to the console
  *
- * @param {string} filename The file the issue occured in
- * @param {Object} position The line/column the error occured on
+ * @param {string} filename The file the issue occurred in
+ * @param {Object} position The line/column the error occurred on
  * @param {string} message The message to be displayed
  * @param {Object} extra Any extra information to show
  */
@@ -323,7 +324,7 @@ function getFiles() {
     gutil.log(' ', 'Searching for changed files');
     let cmd = 'git --no-pager diff --name-only ';
     if (IS_TRAVIS) {
-      cmd += 'FETCH_HEAD $(git merge-base FETCH_HEAD master)';
+      cmd += '$(git merge-base FETCH_HEAD master) FETCH_HEAD';
     } else {
       cmd += '$(git merge-base master HEAD)';
     }
@@ -502,6 +503,22 @@ function testMarkdown(filename, contents, options) {
       });
     }
 
+    // Check for valid Blink components
+    matched = wfRegEx.RE_BLINK_COMPONENTS.exec(contents);
+    if (matched && options.blinkComponents) {
+      position = {line: getLineNumber(contents, matched.index)};
+      matched[1].split(',').forEach(function(component) {
+        component = component.trim();
+        if (options.blinkComponents.indexOf(component) === -1) {
+          msg = `The component (\`${component}\`) is non-standard or misspelled.`
+          logError(filename, position, msg);
+        }
+      })
+    } else {
+      msg = 'No `wf_blink_components` field found in metadata. Add if appropriate.';
+      logWarning(filename, '', msg);
+    }
+
     // Check for valid regions
     matched = wfRegEx.RE_REGION.exec(contents);
     if (matched) {
@@ -622,13 +639,21 @@ function testMarkdown(filename, contents, options) {
       logError(filename, position, msg);
     });
 
-    // Warn on bad anchor tags
+    // Error on bad anchor tags
     matched = wfRegEx.getMatches(/{#\w+}/gm, contents);
     matched.forEach(function(match) {
       position = {line: getLineNumber(contents, match.index)};
-      msg = 'Unsuppored anchor style used, use `{: #anchor }`, found: ';
+      msg = 'Unsupported anchor style used, use `{: #anchor }`, found: ';
       msg += `\`${match[0]}\``;
       logError(filename, position, msg);
+    });
+
+    // Error on script blocks in markdown
+    matched = wfRegEx.getMatches(/<script/gm, contents);
+    matched.forEach(function(match) {
+      position = {line: getLineNumber(contents, match.index)};
+      msg = `'<script> tags are generally not allowed, please double check.`;
+      logWarning(filename, position, msg);
     });
 
     // Warn on missing comment widgets
@@ -680,7 +705,7 @@ function testMarkdown(filename, contents, options) {
     });
   })
   .catch(function(ex) {
-    let msg = `An exception occured in testMarkdown: ${ex}`;
+    let msg = `An exception occurred in testMarkdown: ${ex}`;
     logError(filename, null, msg, ex);
     return false;
   });
@@ -701,7 +726,7 @@ function testYAML(filename, contents) {
     resolve(true);
   })
   .catch(function(ex) {
-    let msg = `An exception occured in testYAML: ${ex}`;
+    let msg = `An exception occurred in testYAML: ${ex}`;
     logError(filename, null, msg, ex);
     return false;
   });
@@ -722,7 +747,7 @@ function testJSON(filename, contents) {
     resolve(true);
   })
   .catch(function(ex) {
-    let msg = `An exception occured in testJSON: ${ex}`;
+    let msg = `An exception occurred in testJSON: ${ex}`;
     logError(filename, null, msg, ex);
     return false;
   });
@@ -746,7 +771,7 @@ function testJavaScript(filename, contents, options) {
     resolve(true);
   })
   .catch(function(ex) {
-    let msg = `An exception occured in testJavaScript: ${ex}`;
+    let msg = `An exception occurred in testJavaScript: ${ex}`;
     logError(filename, null, msg, ex);
     return false;
   });
@@ -779,7 +804,7 @@ function testHTML(filename, contents, options) {
     resolve(true);
   })
   .catch(function(ex) {
-    let msg = `An exception occured in testHTML: ${ex}`;
+    let msg = `An exception occurred in testHTML: ${ex}`;
     logError(filename, null, msg, ex);
     return false;
   });
@@ -976,7 +1001,7 @@ function testFile(filename, opts) {
     });
   })
   .catch(function(ex) {
-    let msg = `A critical test exception occured: ${ex.message}`;
+    let msg = `A critical test exception occurred: ${ex.message}`;
     logError(filename, null, msg, ex);
   })
   .then(function(wasTested) {
@@ -999,7 +1024,8 @@ gulp.task('test', function() {
     lastUpdateMaxDays: 7,
     warnOnJavaScript: true,
     commonTags: parseJSON(COMMON_TAGS_FILE, readFile(COMMON_TAGS_FILE)),
-    contributors: parseYAML(CONTRIBUTORS_FILE, readFile(CONTRIBUTORS_FILE))
+    contributors: parseYAML(CONTRIBUTORS_FILE, readFile(CONTRIBUTORS_FILE)),
+    blinkComponents: parseJSON(BLINK_COMPONENTS_FILE, readFile(BLINK_COMPONENTS_FILE))
   }
   if (GLOBAL.WF.options.testTests) {
     GLOBAL.WF.options.testPath = './src/tests';
@@ -1016,7 +1042,7 @@ gulp.task('test', function() {
     }));
   })
   .catch(function(ex) {
-    let msg = `A critical gulp task exception occured: ${ex.message}`;
+    let msg = `A critical gulp task exception occurred: ${ex.message}`;
     logError('gulp-tasks/test.js', null, msg, ex);
   })
   .then(printSummary)

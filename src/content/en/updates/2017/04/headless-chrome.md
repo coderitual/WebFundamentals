@@ -2,10 +2,11 @@ project_path: /web/_project.yaml
 book_path: /web/updates/_book.yaml
 description: Getting started with Headless Chrome
 
-{# wf_updated_on: 2017-06-22 #}
+{# wf_updated_on: 2017-08-21 #}
 {# wf_published_on: 2017-04-27 #}
 
 {# wf_tags: chrome59,headless,testing #}
+{# wf_blink_components: Internals>Headless #}
 {# wf_featured_image: /web/updates/images/generic/headless-chrome.png #}
 {# wf_featured_snippet: Headless Chrome (shipping in Chrome 59) is a way to run the Chrome browser in a headless environment. It brings all modern web platform features provided by Chromium and the Blink rendering engine to the command line. #}
 
@@ -117,7 +118,7 @@ in the browser, right from the command line:
 ## Debugging Chrome without a browser UI? {: #frontend }
 
 When you run Chrome with `--remote-debugging-port=9222`, it starts an instance
-with the [DevTools Protocol][dtviewer] enabled. The
+with the [DevTools protocol][dtviewer] enabled. The
 protocol is used to communicate with Chrome and drive the headless
 browser instance. It's also what tools like Sublime, VS Code, and Node use for
 remote debugging an application. #synergy
@@ -128,7 +129,7 @@ inspectable pages where you can click through and see what Headless is rendering
 
 <figure>
   <img src="/web/updates/images/2017/04/headless-chrome/remote-debugging-ui.jpg"
-       class="screenshot" alt="DevTools Remote ">
+       class="screenshot" alt="DevTools Remote">
   <figcaption>DevTools remote debugging UI</figcaption>
 </figure>
 
@@ -139,9 +140,66 @@ commands going across the wire, communicating with the browser.
 
 ## Using programmatically (Node) {: #node }
 
-### Launching Chrome {: #nodelaunch }
+### The Puppeteer API {: #puppeteer }
 
-In the previous section, we [started Chrome manually](#cli) using
+[Puppeteer](https://github.com/GoogleChrome/puppeteer) is a Node library
+developed by the Chrome team. It provides a high-level API to control headless
+(or full) Chrome. It's similar to other automated testing libraries like Phantom
+and NightmareJS, but it only works with the latest versions of Chrome.
+
+Among other things, Puppeteer can be used to easily take screenshots, create PDFs,
+navigate pages, and fetch information about those pages. I recommend the library
+if you want to quickly automate browser testing. It hides away the complexities
+of the DevTools protocol and takes care of redundant tasks like launching a
+debug instance of Chrome.
+
+Install it:
+
+    yarn add puppeteer
+
+**Example** - print the user agent
+
+```javascript
+const puppeteer = require('puppeteer');
+
+(async() => {
+  const browser = await puppeteer.launch();
+  console.log(await browser.version());
+  browser.close();
+})();
+```
+
+**Example** - taking a screenshot of the page
+
+```javascript
+const puppeteer = require('puppeteer');
+
+(async() => {
+
+const browser = await puppeteer.launch();
+const page = await browser.newPage();
+await page.goto('https://www.chromestatus.com', {waitUntil: 'networkidle'});
+await page.pdf({path: 'page.pdf', format: 'A4'});
+
+browser.close();
+})();
+```
+
+Check out [Puppeteer's documentation](https://github.com/GoogleChrome/puppeteer/blob/master/docs/api.md)
+to learn more about the full API.
+
+### The CRI library {: #cri }
+
+[chrome-remote-interface](https://www.npmjs.com/package/chrome-remote-interface)
+is a lower-level library than Puppeteer's API. I recommend it if you want to be
+close to the metal and use the [DevTools protocol][dtviewer] directly.
+
+#### Launching Chrome {: #nodelaunch }
+
+chrome-remote-interface doesn't launch Chrome for you, so you'll have to take
+care of that yourself.
+
+In the CLI section, we [started Chrome manually](#cli) using
 `--headless --remote-debugging-port=9222`. However, to fully automate tests, you'll probably
 want to spawn Chrome _from_ your application.
 
@@ -164,7 +222,7 @@ launchHeadlessChrome('https://www.chromestatus.com', (err, stdout, stderr) => {
 But things get tricky if you want a portable solution that works across multiple
 platforms. Just look at that hard-coded path to Chrome :(
 
-#### Using ChromeLauncher {: #nodechromelauncher }
+##### Using ChromeLauncher {: #nodechromelauncher }
 
 [Lighthouse](/web/tools/lighthouse/) is a marvelous
 tool for testing the quality of your web apps. A robust module for launching
@@ -221,12 +279,7 @@ won't be any browser UI. We're headless.
 
 To control the browser, we need the DevTools protocol!
 
-### Retrieving information about the page {: #useprotocol }
-
-[chrome-remote-interface](https://www.npmjs.com/package/chrome-remote-interface)
-is a great Node package that provides usable APIs for the
-[DevTools Protocol][dtviewer]. You can use it to orchestrate Headless
-Chrome, navigate to pages, and fetch information about those pages.
+#### Retrieving information about the page {: #useprotocol }
 
 Warning: The DevTools protocol can do a ton of interesting stuff, but it can be a bit
 daunting at first. I recommend spending a bit of time browsing the
@@ -237,7 +290,7 @@ Let's install the library:
 
     yarn add chrome-remote-interface
 
-#### Examples
+##### Examples
 
 **Example** - print the user agent
 
@@ -248,7 +301,7 @@ const CDP = require('chrome-remote-interface');
 
 launchChrome().then(async chrome => {
   const version = await CDP.Version({port: chrome.port});
-  console.log(version['User-Agent']));
+  console.log(version['User-Agent']);
 });
 ```
 
@@ -325,6 +378,134 @@ Page.loadEventFired(async () => {
 })();
 ```
 
+## Using Selenium, WebDriver, and ChromeDriver {: #drivers }
+
+Right now, Selenium opens a full instance of Chrome. In other words, it's an
+automated solution but not completely headless. However, Selenium can be
+configured to run headless Chrome with a little work. I recommend
+[Running Selenium with Headless Chrome](https://intoli.com/blog/running-selenium-with-headless-chrome/)
+if you want the
+full instructions on how to set things up yourself, but I've dropped in some
+examples below to get you started.
+
+#### Using ChromeDriver
+
+[ChromeDriver](https://sites.google.com/a/chromium.org/chromedriver/) 2.3.0
+supports Chrome 59 and later and works with headless Chrome. In some cases, you may need
+Chrome 60 to work around bugs. For example, there are known issues with taking
+screenshots in Chrome 59.
+
+Install:
+
+```
+yarn add selenium-webdriver chromedriver
+```
+
+Example:
+
+```javascript
+const fs = require('fs');
+const webdriver = require('selenium-webdriver');
+const chromedriver = require('chromedriver');
+
+// This should be the path to your Canary installation.
+// I'm assuming Mac for the example.
+const PATH_TO_CANARY = '/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary';
+
+const chromeCapabilities = webdriver.Capabilities.chrome();
+chromeCapabilities.set('chromeOptions', {
+  binary: PATH_TO_CANARY // Screenshots require Chrome 60. Force Canary.
+  'args': [
+    '--headless',
+  ]
+});
+
+const driver = new webdriver.Builder()
+  .forBrowser('chrome')
+  .withCapabilities(chromeCapabilities)
+  .build();
+
+// Navigate to google.com, enter a search.
+driver.get('https://www.google.com/');
+driver.findElement({name: 'q'}).sendKeys('webdriver');
+driver.findElement({name: 'btnG'}).click();
+driver.wait(webdriver.until.titleIs('webdriver - Google Search'), 1000);
+
+// Take screenshot of results page. Save to disk.
+driver.takeScreenshot().then(base64png => {
+  fs.writeFileSync('screenshot.png', new Buffer(base64png, 'base64'));
+});
+
+driver.quit();
+```
+
+#### Using WebDriverIO
+
+[WebDriverIO](http://webdriver.io/) is a higher level API on top of Selenium WebDriver.
+
+Install:
+
+```
+yarn add webdriverio chromedriver
+```
+
+Example: filter CSS features on chromestatus.com
+
+```javascript
+const webdriverio = require('webdriverio');
+const chromedriver = require('chromedriver');
+
+// This should be the path to your Canary installation.
+// I'm assuming Mac for the example.
+const PATH_TO_CANARY = '/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary';
+const PORT = 9515;
+
+chromedriver.start([
+  '--url-base=wd/hub',
+  `--port=${PORT}`,
+  '--verbose'
+]);
+
+(async () => {
+
+const opts = {
+  port: PORT,
+  desiredCapabilities: {
+    browserName: 'chrome',
+    chromeOptions: {
+      binary: PATH_TO_CANARY // Screenshots require Chrome 60. Force Canary.
+      args: ['--headless']
+    }
+  }
+};
+
+const browser = webdriverio.remote(opts).init();
+
+await browser.url('https://www.chromestatus.com/features');
+
+const title = await browser.getTitle();
+console.log(`Title: ${title}`);
+
+await browser.waitForText('.num-features', 3000);
+let numFeatures = await browser.getText('.num-features');
+console.log(`Chrome has ${numFeatures} total features`);
+
+await browser.setValue('input[type="search"]', 'CSS');
+console.log('Filtering features...');
+await browser.pause(1000);
+
+numFeatures = await browser.getText('.num-features');
+console.log(`Chrome has ${numFeatures} CSS features`);
+
+const buffer = await browser.saveScreenshot('screenshot.png');
+console.log('Saved screenshot...');
+
+chromedriver.stop();
+browser.end();
+
+})();
+```
+
 ## Further resources
 
 Here are some useful resources to get you started:
@@ -372,17 +553,7 @@ Flexible container.
 
 **Can I use this with Selenium / WebDriver / ChromeDriver**?
 
-Right now, Selenium opens a full instance of Chrome. In other words, it's an
-automated solution but not completely headless. However, Selenium could use
-`--headless` in the future.
-
-If you want to bleed on the edge, I recommend [Running Selenium with
-Headless Chrome](https://intoli.com/blog/running-selenium-with-headless-chrome/) to set things up
-yourself.
-
-Note: you may encounter bugs using [ChromeDriver](https://github.com/SeleniumHQ/selenium/wiki/ChromeDriver).
-At the time of writing, the latest release (2.29) only supports Chrome 58.
-Headless Chrome requires Chrome 59 or later.
+Yes. See [Using Selenium, WebDrive, or ChromeDriver](#drivers).
 
 **How is this related to PhantomJS?**
 
@@ -391,7 +562,7 @@ can be used for automated testing in a headless environment. The main difference
 between the two is that Phantom uses an older version of WebKit as its rendering
 engine while Headless Chrome uses the latest version of Blink.
 
-At the moment, Phantom also provides a higher level API than the [DevTools Protocol][dtviewer].
+At the moment, Phantom also provides a higher level API than the [DevTools protocol][dtviewer].
 
 **Where do I report bugs?**
 
